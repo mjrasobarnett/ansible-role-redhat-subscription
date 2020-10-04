@@ -1,3 +1,17 @@
+  # Shockingly (to me) the redhat_subscription type is *not*
+  # idempotent in 2.9 (it works in 2.8)
+  # Upstream bug report: https://github.com/ansible/ansible/issues/57472
+  #
+  # As workaround, check subscription status manually before role
+  # is called, and skip role execution if already subscribed
+- name: "Check whether the system is already registered"
+  command: "subscription-manager status"
+  register: rhsm_subscription_status
+  become: yes
+  check_mode: no
+  changed_when: false
+  failed_when: false
+
 - name: Manage Red Hat subscription
   redhat_subscription:
     username: "{{ rhsm_username | default(omit) }}"
@@ -19,6 +33,8 @@
   tags:
     - rhsm
     - rhsm_register
+  when:
+    - rhsm_subscription_status.rc != 0
   # Workaround for https://bugzilla.redhat.com/show_bug.cgi?id=1715958
   # A regression in Satellite added a delay to the registration to happen.
   # To counter this problem we retry 5 times with a delay of 10 seconds between
